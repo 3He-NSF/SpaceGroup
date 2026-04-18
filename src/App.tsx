@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type WheelEvent as ReactWheelEvent } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { RefreshCw, CheckCircle2, XCircle, Trophy, ChevronDown, Send, Menu, Home, List, Box } from "lucide-react";
 
-type AnswerValue = "◯" | "✕" | string;
+type AnswerValue = "◯" | "✕" | string | string[];
 
 type SpacegroupEntry = {
   gemmi_index: number;
@@ -54,8 +54,9 @@ type SpacegroupData = {
 type Statement = {
   id: string;
   text: string;
-  answer: boolean | string;
+  answer: boolean | string | string[];
   choices?: { value: string; label: string }[];
+  multiSelect?: boolean;
 };
 
 type ViewMode = "quiz" | "spacegroup-list" | "symmetry-3d";
@@ -147,6 +148,36 @@ const SCREW_TYPE_CHOICES = [
 ] as const;
 
 
+const CENTRING_EXTINCTION_CHOICES = [
+  { value: "none", label: "消滅則なし" },
+  { value: "h+k=2n", label: "h + k = 2n" },
+  { value: "h+l=2n", label: "h + l = 2n" },
+  { value: "k+l=2n", label: "k + l = 2n" },
+  { value: "h+k+l=2n", label: "h + k + l = 2n" },
+  { value: "-h+k+l=3n", label: "-h + k + l = 3n" },
+] as const;
+
+const GLIDE_EXTINCTION_CHOICES = [
+  { value: "none", label: "該当なし" },
+  { value: "hk0:h=2n", label: "hk0: h = 2n" },
+  { value: "hk0:k=2n", label: "hk0: k = 2n" },
+  { value: "h0l:h=2n", label: "h0l: h = 2n" },
+  { value: "h0l:l=2n", label: "h0l: l = 2n" },
+  { value: "0kl:k=2n", label: "0kl: k = 2n" },
+  { value: "0kl:l=2n", label: "0kl: l = 2n" },
+] as const;
+
+const SCREW_EXTINCTION_CHOICES = [
+  { value: "none", label: "該当なし" },
+  { value: "h00:h=2n", label: "h00: h = 2n" },
+  { value: "h00:h=4n", label: "h00: h = 4n" },
+  { value: "0k0:k=2n", label: "0k0: k = 2n" },
+  { value: "0k0:k=4n", label: "0k0: k = 4n" },
+  { value: "00l:l=2n", label: "00l: l = 2n" },
+  { value: "00l:l=4n", label: "00l: l = 4n" },
+  { value: "00l:l=3n", label: "00l: l = 3n" },
+  { value: "000l:l=6n", label: "000l: l = 6n" },
+] as const;
 
 function parseFractionString(token: string): number {
   const normalized = token.replace(/\s+/g, "");
@@ -465,6 +496,185 @@ function detectScrewAxisType(entry: SpacegroupEntry): "x" | "y" | "z" | "multipl
   return Array.from(axes)[0];
 }
 
+
+
+function detectCentringExtinction(entry: SpacegroupEntry): string[] {
+  switch (entry.centring_type) {
+    case "A":
+      return ["k+l=2n"];
+    case "B":
+      return ["h+l=2n"];
+    case "C":
+      return ["h+k=2n"];
+    case "I":
+      return ["h+k+l=2n"];
+    case "F":
+      return ["h+k=2n", "h+l=2n", "k+l=2n"];
+    case "R":
+      return ["-h+k+l=3n"];
+    default:
+      return ["none"];
+  }
+}
+
+function detectGlideExtinction(entry: SpacegroupEntry): string {
+  for (const op of entry.operations_xyz) {
+    const plane = analyzePlaneLikeOperation(op);
+    if (!plane || plane.kind !== "glide" || !plane.glideType) continue;
+
+    if (plane.normalAxis === "z") {
+      if (plane.glideType === "a" || plane.glideType === "n" || plane.glideType === "d") {
+        return "hk0:h=2n";
+      }
+      if (plane.glideType === "b") {
+        return "hk0:k=2n";
+      }
+      if (plane.glideType === "c") {
+        return "none";
+      }
+    }
+
+    if (plane.normalAxis === "y") {
+      if (plane.glideType === "a" || plane.glideType === "n" || plane.glideType === "d") {
+        return "h0l:h=2n";
+      }
+      if (plane.glideType === "c") {
+        return "h0l:l=2n";
+      }
+      if (plane.glideType === "b") {
+        return "none";
+      }
+    }
+
+    if (plane.normalAxis === "x") {
+      if (plane.glideType === "b" || plane.glideType === "n" || plane.glideType === "d") {
+        return "0kl:k=2n";
+      }
+      if (plane.glideType === "c") {
+        return "0kl:l=2n";
+      }
+      if (plane.glideType === "a") {
+        return "none";
+      }
+    }
+  }
+
+  return "none";
+}
+
+function detectScrewExtinction(entry: SpacegroupEntry): string {
+  let fallback: string = "none";
+
+  for (const op of entry.operations_xyz) {
+    const screw = analyzeScrewLikeOperation(op);
+    if (!screw) continue;
+
+    if (screw.axis === "x") {
+      if (screw.screwType === "21" || screw.screwType === "42") return "h00:h=2n";
+      if (screw.screwType === "41" || screw.screwType === "43") return "h00:h=4n";
+    }
+
+    if (screw.axis === "y") {
+      if (screw.screwType === "21" || screw.screwType === "42") return "0k0:k=2n";
+      if (screw.screwType === "41" || screw.screwType === "43") return "0k0:k=4n";
+    }
+
+    if (screw.axis === "z") {
+      if (screw.screwType === "61" || screw.screwType === "65") return "000l:l=6n";
+      if (screw.screwType === "31" || screw.screwType === "32" || screw.screwType === "62" || screw.screwType === "64") return "00l:l=3n";
+      if (screw.screwType === "41" || screw.screwType === "43") return "00l:l=4n";
+      if (screw.screwType === "21" || screw.screwType === "42" || screw.screwType === "63") {
+        fallback = "00l:l=2n";
+      }
+    }
+  }
+
+  return fallback;
+}
+
+
+function screwExtinctionMod(screwType: ScrewOperationAnalysis["screwType"]): number {
+  switch (screwType) {
+    case "21":
+      return 2;
+    case "31":
+    case "32":
+      return 3;
+    case "41":
+    case "43":
+      return 4;
+    case "42":
+      return 2;
+    case "61":
+    case "65":
+      return 6;
+    case "62":
+    case "64":
+      return 3;
+    case "63":
+      return 2;
+    default:
+      return 1;
+  }
+}
+
+function screwReflectionLabel(axis: Axis): string {
+  return axis === "x" ? "h00" : axis === "y" ? "0k0" : "00l";
+}
+
+function screwIndexLabel(axis: Axis): string {
+  return axis === "x" ? "h" : axis === "y" ? "k" : "l";
+}
+
+function getExtinctionConditions(entry: SpacegroupEntry): string[] {
+  const conditions: string[] = [];
+
+  switch (entry.centring_type) {
+    case "A":
+      conditions.push("A 格子: k + l = 2n");
+      break;
+    case "B":
+      conditions.push("B 格子: h + l = 2n");
+      break;
+    case "C":
+      conditions.push("C 格子: h + k = 2n");
+      break;
+    case "I":
+      conditions.push("I 格子: h + k + l = 2n");
+      break;
+    case "F":
+      conditions.push("F 格子: h + k = 2n");
+      conditions.push("F 格子: h + l = 2n");
+      conditions.push("F 格子: k + l = 2n");
+      break;
+    case "R":
+      conditions.push("R 格子: -h + k + l = 3n（hexagonal setting の代表例）");
+      break;
+    default:
+      break;
+  }
+
+  const seenScrew = new Set<string>();
+  for (const op of entry.operations_xyz) {
+    const screw = analyzeScrewLikeOperation(op);
+    if (!screw) continue;
+    const key = `${screw.axis}-${screw.screwType}`;
+    if (seenScrew.has(key)) continue;
+    seenScrew.add(key);
+
+    const mod = screwExtinctionMod(screw.screwType);
+    const reflection = screwReflectionLabel(screw.axis);
+    const index = screwIndexLabel(screw.axis);
+    conditions.push(`${formatScrewTypeText(screw.screwType)} screw: ${reflection} で ${index} = ${mod}n`);
+  }
+
+  if (conditions.length === 0) {
+    conditions.push("代表的な消滅条件なし");
+  }
+
+  return conditions;
+}
+
 function matrixEquals(
   a: [number, number, number][],
   b: [number, number, number][]
@@ -543,7 +753,7 @@ function classifyOperation(op: string): {
     const hasTranslation = !isIntegerTranslationVector(parsed.translation);
     return {
       kind: "rotation",
-      detail: hasTranslation ? "回転操作（非零並進あり）" : "回転操作",
+      detail: hasTranslation ? "回転操作（並進付き）" : "回転操作",
     };
   }
 
@@ -795,6 +1005,26 @@ function makeQuiz(entry: SpacegroupEntry): Statement[] {
       answer: detectScrewType(entry),
       choices: SCREW_TYPE_CHOICES.map((choice) => ({ ...choice })),
     },
+    {
+      id: "centring-extinction",
+      text: "格子タイプに由来する消滅則をすべて選んでください。",
+      answer: detectCentringExtinction(entry),
+      choices: CENTRING_EXTINCTION_CHOICES.map((c) => ({ ...c })),
+      multiSelect: true,
+    },
+    {
+      id: "glide-extinction",
+      text: "映進面に由来する代表的な消滅則を選んでください。",
+      answer: detectGlideExtinction(entry),
+      choices: GLIDE_EXTINCTION_CHOICES.map((c) => ({ ...c })),
+    },
+    {
+      id: "screw-extinction",
+      text: "らせん軸に由来する代表的な消滅則を選んでください。",
+      answer: detectScrewExtinction(entry),
+      choices: SCREW_EXTINCTION_CHOICES.map((c) => ({ ...c })),
+    },
+    // extinction question removed
   ];
 }
 
@@ -829,6 +1059,29 @@ function screwAxisLabel(value: string): string {
 
 function screwTypeLabel(value: string): string {
   const found = SCREW_TYPE_CHOICES.find((choice) => choice.value === value);
+  return found ? found.label : value;
+}
+
+
+function centringExtinctionLabel(value: string | string[]): string {
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => {
+        const found = CENTRING_EXTINCTION_CHOICES.find((c) => c.value === v);
+        return found ? found.label : v;
+      })
+      .join(" / ");
+  }
+  const found = CENTRING_EXTINCTION_CHOICES.find((c) => c.value === value);
+  return found ? found.label : value;
+}
+function glideExtinctionLabel(value: string): string {
+  const found = GLIDE_EXTINCTION_CHOICES.find((c) => c.value === value);
+  return found ? found.label : value;
+}
+
+function screwExtinctionLabel(value: string): string {
+  const found = SCREW_EXTINCTION_CHOICES.find((c) => c.value === value);
   return found ? found.label : value;
 }
 
@@ -1155,12 +1408,12 @@ function Symmetry3DPage({ entry }: { entry: SpacegroupEntry }) {
     };
   });
 
-  function handleMouseDown(e: React.MouseEvent) {
+  function handleMouseDown(e: ReactMouseEvent<SVGSVGElement>) {
     setIsDragging(true);
     setLastPos({ x: e.clientX, y: e.clientY });
   }
 
-  function handleMouseMove(e: React.MouseEvent) {
+  function handleMouseMove(e: ReactMouseEvent<SVGSVGElement>) {
     if (!isDragging || !lastPos) return;
     const dx = e.clientX - lastPos.x;
     const dy = e.clientY - lastPos.y;
@@ -1176,7 +1429,7 @@ function Symmetry3DPage({ entry }: { entry: SpacegroupEntry }) {
     setLastPos(null);
   }
 
-  function handleWheel(e: React.WheelEvent) {
+  function handleWheel(e: ReactWheelEvent<SVGSVGElement>) {
     e.preventDefault();
     setZoom((prev) => {
       const next = prev * (1 - e.deltaY * 0.001);
@@ -1378,11 +1631,6 @@ function Symmetry3DPage({ entry }: { entry: SpacegroupEntry }) {
                   {selectedOperationInfo.kind === "screw" ? "screw" : selectedOperationInfo.kind}
                 </div>
                 <div className="mt-1 text-sm text-slate-700">{selectedOperationInfo.detail}</div>
-                {selectedOperationInfo.kind === "rotation" && selectedOperationInfo.detail.includes("非零並進あり") && (
-                  <div className="mt-2 text-sm text-rose-700">
-                    この操作は並進成分を含みます。screw 判定ロジックで未対応の可能性があります。
-                  </div>
-                )}
                 {selectedOperationInfo.kind === "rotoinversion" && selectedOperationInfo.axisDirection && (
                   <div className="mt-2 text-sm text-slate-700">
                     回反軸: {selectedOperationInfo.axisDirection}
@@ -1587,20 +1835,36 @@ export default function SpacegroupQuizApp() {
   }, []);
 
   const statements = useMemo(() => (entry ? makeQuiz(entry) : []), [entry]);
+  const extinctionConditions = useMemo(() => (entry ? getExtinctionConditions(entry) : []), [entry]);
 
   useEffect(() => {
     const next: Record<string, AnswerValue | null> = {};
-    for (const st of statements) next[st.id] = null;
+    for (const st of statements) {
+      if (st.multiSelect) {
+        next[st.id] = [];
+      } else if (st.choices?.some((choice) => choice.value === "none")) {
+        next[st.id] = "none";
+      } else {
+        next[st.id] = null;
+      }
+    }
     setAnswers(next);
     setSubmitted(false);
   }, [statements]);
+
 
   const score = statements.reduce((acc, st) => {
     if (!submitted) return acc;
     return acc + (isStatementCorrect(st) ? 1 : 0);
   }, 0);
 
-  const allAnswered = statements.every((st) => answers[st.id] !== null);
+    const allAnswered = statements.every((st) => {
+    const value = answers[st.id];
+    if (st.multiSelect) {
+      return Array.isArray(value) && value.length > 0;
+    }
+    return value !== null;
+  });
 
   function newQuiz() {
     setEntry(pickRandomEntry(data.entries));
@@ -1608,8 +1872,23 @@ export default function SpacegroupQuizApp() {
     setMenuOpen(false);
   }
 
-  function selectAnswer(statementId: string, value: AnswerValue) {
+    function selectAnswer(statementId: string, value: AnswerValue) {
     if (submitted) return;
+    const statement = statements.find((st) => st.id === statementId);
+    if (!statement) return;
+
+    if (statement.multiSelect && typeof value === "string") {
+      setAnswers((prev) => {
+        const current = Array.isArray(prev[statementId]) ? [...(prev[statementId] as string[])] : [];
+        const exists = current.includes(value);
+        return {
+          ...prev,
+          [statementId]: exists ? current.filter((v) => v !== value) : [...current, value],
+        };
+      });
+      return;
+    }
+
     setAnswers((prev) => ({
       ...prev,
       [statementId]: prev[statementId] === value ? null : value,
@@ -1621,6 +1900,12 @@ export default function SpacegroupQuizApp() {
     if (selected === null) return false;
     if (typeof statement.answer === "boolean") {
       return selected === tfLabel(statement.answer);
+    }
+    if (Array.isArray(statement.answer)) {
+      if (!Array.isArray(selected)) return false;
+      const a = [...statement.answer].sort();
+      const b = [...selected].sort();
+      return a.length === b.length && a.every((value, index) => value === b[index]);
     }
     return selected === statement.answer;
   }
@@ -1658,7 +1943,7 @@ export default function SpacegroupQuizApp() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-      <div className="sticky top-0 z-30 mx-auto mb-6 max-w-6xl bg-slate-50/95 pt-2 pb-3.5 backdrop-blur">
+      <div className="sticky top-0 z-30 mx-auto mb-6 max-w-6xl bg-slate-50/95 pt-2 pb-4 backdrop-blur">
         <div className="relative flex items-center justify-between rounded-2xl border bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
           <div>
             <p className="text-lg font-semibold text-slate-900 md:text-xl">Space Group App</p>
@@ -1770,22 +2055,32 @@ export default function SpacegroupQuizApp() {
                 <div className="space-y-4">
                   {statements.map((statement, index) => {
                     const selected = answers[statement.id];
+                    const isChoiceSelected = (choiceValue: string) =>
+                      statement.multiSelect
+                        ? Array.isArray(selected) && selected.includes(choiceValue)
+                        : selected === choiceValue;
                     const correctAnswer =
                       typeof statement.answer === "boolean"
                         ? tfLabel(statement.answer)
                         : statement.id === "crystal-system-choice"
-                          ? crystalSystemLabel(statement.answer)
+                          ? crystalSystemLabel(statement.answer as string)
                           : statement.id === "centring"
-                            ? centringTypeLabel(statement.answer)
+                            ? centringTypeLabel(statement.answer as string)
                             : statement.id === "mirror"
-                              ? mirrorPlaneLabel(statement.answer)
+                              ? mirrorPlaneLabel(statement.answer as string)
                               : statement.id === "glide"
-                                ? glidePlaneLabel(statement.answer)
+                                ? glidePlaneLabel(statement.answer as string)
                                 : statement.id === "screw"
-                                  ? screwAxisLabel(statement.answer)
+                                  ? screwAxisLabel(statement.answer as string)
                                   : statement.id === "screw-type"
-                                    ? screwTypeLabel(statement.answer)
-                                    : statement.answer;
+                                    ? screwTypeLabel(statement.answer as string)
+                                    : statement.id === "centring-extinction"
+                                      ? centringExtinctionLabel(statement.answer)
+                                      : statement.id === "glide-extinction"
+                                        ? glideExtinctionLabel(statement.answer as string)
+                                        : statement.id === "screw-extinction"
+                                          ? screwExtinctionLabel(statement.answer as string)
+                                          : statement.answer;
                     const isCorrect = submitted && isStatementCorrect(statement);
                     const isWrong = submitted && selected !== null && !isStatementCorrect(statement);
 
@@ -1824,9 +2119,9 @@ export default function SpacegroupQuizApp() {
                                     {statement.choices.map((choice) => (
                                       <Button
                                         key={choice.value}
-                                        variant={selected === choice.value ? "default" : "outline"}
+                                        variant={isChoiceSelected(choice.value) ? "default" : "outline"}
                                         className={`w-full rounded-2xl transition-colors ${
-                                          selected === choice.value
+                                          isChoiceSelected(choice.value)
                                             ? "bg-slate-900 text-white border-slate-900 ring-2 ring-slate-300"
                                             : "bg-white text-slate-700 hover:bg-slate-100"
                                         }`}
@@ -1835,7 +2130,7 @@ export default function SpacegroupQuizApp() {
                                       >
                                         <span className="flex items-center justify-between gap-3 text-base md:text-lg">
                                           <span>{choice.label}</span>
-                                          {selected === choice.value && <span className="text-xs font-semibold"></span>}
+                                          {isChoiceSelected(choice.value) && <span className="text-xs font-semibold"></span>}
                                         </span>
                                       </Button>
                                     ))}
@@ -1948,6 +2243,14 @@ export default function SpacegroupQuizApp() {
                   <InfoRow label="格子形式" value={entry.centring_type} />
                   <InfoRow label="点群" value={entry.point_group_hm} />
                   <Separator className="" />
+                  <div className="rounded-xl border p-3">
+                    <div className="font-medium text-slate-900">主な消滅条件</div>
+                    <div className="mt-2 space-y-1 text-sm text-slate-700">
+                      {extinctionConditions.map((condition, index) => (
+                        <div key={`${condition}-${index}`}>• {condition}</div>
+                      ))}
+                    </div>
+                  </div>
                   <details className="rounded-xl border p-3">
                     <summary className="cursor-pointer font-medium">設定の詳細と対称操作を表示</summary>
                     <div className="mt-3 space-y-2 text-sm">
