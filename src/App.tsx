@@ -509,79 +509,74 @@ function detectCentringExtinction(entry: SpacegroupEntry): string[] {
   }
 }
 
-function detectGlideExtinction(entry: SpacegroupEntry): string {
+
+
+function detectGlideExtinctions(entry: SpacegroupEntry): string[] {
+  const results = new Set<string>();
+
   for (const op of entry.operations_xyz) {
     const plane = analyzePlaneLikeOperation(op);
     if (!plane || plane.kind !== "glide" || !plane.glideType) continue;
 
     if (plane.normalAxis === "z") {
       if (plane.glideType === "a" || plane.glideType === "n" || plane.glideType === "d") {
-        return "hk0:h=2n";
+        results.add("hk0:h=2n");
       }
       if (plane.glideType === "b") {
-        return "hk0:k=2n";
-      }
-      if (plane.glideType === "c") {
-        return "none";
+        results.add("hk0:k=2n");
       }
     }
 
     if (plane.normalAxis === "y") {
       if (plane.glideType === "a" || plane.glideType === "n" || plane.glideType === "d") {
-        return "h0l:h=2n";
+        results.add("h0l:h=2n");
       }
       if (plane.glideType === "c") {
-        return "h0l:l=2n";
-      }
-      if (plane.glideType === "b") {
-        return "none";
+        results.add("h0l:l=2n");
       }
     }
 
     if (plane.normalAxis === "x") {
       if (plane.glideType === "b" || plane.glideType === "n" || plane.glideType === "d") {
-        return "0kl:k=2n";
+        results.add("0kl:k=2n");
       }
       if (plane.glideType === "c") {
-        return "0kl:l=2n";
-      }
-      if (plane.glideType === "a") {
-        return "none";
+        results.add("0kl:l=2n");
       }
     }
   }
 
-  return "none";
+  return results.size === 0 ? ["none"] : Array.from(results).sort();
 }
 
-function detectScrewExtinction(entry: SpacegroupEntry): string {
-  let fallback: string = "none";
+
+
+function detectScrewExtinctions(entry: SpacegroupEntry): string[] {
+  const results = new Set<string>();
 
   for (const op of entry.operations_xyz) {
     const screw = analyzeScrewLikeOperation(op);
     if (!screw) continue;
 
     if (screw.axis === "x") {
-      if (screw.screwType === "21" || screw.screwType === "42") return "h00:h=2n";
-      if (screw.screwType === "41" || screw.screwType === "43") return "h00:h=4n";
+      if (screw.screwType === "21" || screw.screwType === "42") results.add("h00:h=2n");
+      if (screw.screwType === "41" || screw.screwType === "43") results.add("h00:h=4n");
     }
 
     if (screw.axis === "y") {
-      if (screw.screwType === "21" || screw.screwType === "42") return "0k0:k=2n";
-      if (screw.screwType === "41" || screw.screwType === "43") return "0k0:k=4n";
+      if (screw.screwType === "21" || screw.screwType === "42") results.add("0k0:k=2n");
+      if (screw.screwType === "41" || screw.screwType === "43") results.add("0k0:k=4n");
     }
 
     if (screw.axis === "z") {
-      if (screw.screwType === "61" || screw.screwType === "65") return "000l:l=6n";
-      if (screw.screwType === "31" || screw.screwType === "32" || screw.screwType === "62" || screw.screwType === "64") return "00l:l=3n";
-      if (screw.screwType === "41" || screw.screwType === "43") return "00l:l=4n";
-      if (screw.screwType === "21" || screw.screwType === "42" || screw.screwType === "63") {
-        fallback = "00l:l=2n";
-      }
+      if (screw.screwType === "61" || screw.screwType === "65") results.add("000l:l=6n");
+      if (screw.screwType === "31" || screw.screwType === "32" || screw.screwType === "62" || screw.screwType === "64") results.add("00l:l=3n");
+      if (screw.screwType === "41" || screw.screwType === "43") results.add("00l:l=4n");
+      if (screw.screwType === "21" || screw.screwType === "42" || screw.screwType === "63") results.add("00l:l=2n");
     }
   }
 
-  return fallback;
+  return results.size === 0 ? ["none"] : Array.from(results).sort();
 }
 
 
@@ -743,6 +738,15 @@ function classifyOperation(op: string): {
 
   if (determinant === 1) {
     const hasTranslation = !isIntegerTranslationVector(parsed.translation);
+    const rotationInfo = getRotationAxisAndOrder(op);
+
+    if (rotationInfo) {
+      return {
+        kind: "rotation",
+        detail: `${rotationInfo.axisDirection} の ${rotationInfo.order} 回回転操作${hasTranslation ? "（並進付き）" : ""}`,
+      };
+    }
+
     return {
       kind: "rotation",
       detail: hasTranslation ? "回転操作（並進付き）" : "回転操作",
@@ -841,6 +845,53 @@ function getRotoinversionAxisDirection(op: string): string | null {
 
   return formatAxisDirection(axis);
 }
+
+function getRotationAxisAndOrder(op: string): { axisDirection: string; order: number } | null {
+  const parsed = parseOperation(op);
+  if (!parsed) return null;
+
+  const determinant =
+    parsed.matrix[0][0] * (parsed.matrix[1][1] * parsed.matrix[2][2] - parsed.matrix[1][2] * parsed.matrix[2][1]) -
+    parsed.matrix[0][1] * (parsed.matrix[1][0] * parsed.matrix[2][2] - parsed.matrix[1][2] * parsed.matrix[2][0]) +
+    parsed.matrix[0][2] * (parsed.matrix[1][0] * parsed.matrix[2][1] - parsed.matrix[1][1] * parsed.matrix[2][0]);
+
+  if (determinant !== 1) return null;
+
+  const trace = parsed.matrix[0][0] + parsed.matrix[1][1] + parsed.matrix[2][2];
+  let order: number | null = null;
+
+  if (trace === -1) {
+    order = 2;
+  } else if (trace === 0) {
+    order = 3;
+  } else if (trace === 1) {
+    order = 4;
+  } else if (trace === 2) {
+    order = 6;
+  }
+
+  if (!order) return null;
+
+  const mMinusI = parsed.matrix.map((row, i) => [
+    row[0] - (i === 0 ? 1 : 0),
+    row[1] - (i === 1 ? 1 : 0),
+    row[2] - (i === 2 ? 1 : 0),
+  ]) as [number, number, number][];
+
+  const rows = mMinusI.map((r) => ({ x: r[0], y: r[1], z: r[2] }));
+  const candidates = [
+    cross(rows[0], rows[1]),
+    cross(rows[0], rows[2]),
+    cross(rows[1], rows[2]),
+  ];
+
+  const axis = candidates.find((v) => norm2(v) > 0);
+  if (!axis) return null;
+
+  const axisDirection = formatAxisDirection(axis);
+  return { axisDirection, order };
+}
+
 
 function getInversionCenter(op: string): { x: number; y: number; z: number } | null {
   const parsed = parseOperation(op);
@@ -1010,15 +1061,17 @@ function makeQuiz(entry: SpacegroupEntry): Statement[] {
     },
     {
       id: "glide-extinction",
-      text: "映進面に由来する代表的な消滅則を選んでください。",
-      answer: detectGlideExtinction(entry),
+      text: "映進面に由来する消滅則をすべて選んでください。",
+      answer: detectGlideExtinctions(entry),
       choices: GLIDE_EXTINCTION_CHOICES.map((c) => ({ ...c })),
+      multiSelect: true,
     },
     {
       id: "screw-extinction",
-      text: "らせん軸に由来する代表的な消滅則を選んでください。",
-      answer: detectScrewExtinction(entry),
+      text: "らせん軸に由来する消滅則をすべて選んでください。",
+      answer: detectScrewExtinctions(entry),
       choices: SCREW_EXTINCTION_CHOICES.map((c) => ({ ...c })),
+      multiSelect: true,
     },
     // extinction question removed
   ];
@@ -1071,12 +1124,28 @@ function centringExtinctionLabel(value: string | string[]): string {
   const found = CENTRING_EXTINCTION_CHOICES.find((c) => c.value === value);
   return found ? found.label : value;
 }
-function glideExtinctionLabel(value: string): string {
+function glideExtinctionLabel(value: string | string[]): string {
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => {
+        const found = GLIDE_EXTINCTION_CHOICES.find((c) => c.value === v);
+        return found ? found.label : v;
+      })
+      .join(" / ");
+  }
   const found = GLIDE_EXTINCTION_CHOICES.find((c) => c.value === value);
   return found ? found.label : value;
 }
 
-function screwExtinctionLabel(value: string): string {
+function screwExtinctionLabel(value: string | string[]): string {
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => {
+        const found = SCREW_EXTINCTION_CHOICES.find((c) => c.value === v);
+        return found ? found.label : v;
+      })
+      .join(" / ");
+  }
   const found = SCREW_EXTINCTION_CHOICES.find((c) => c.value === value);
   return found ? found.label : value;
 }
@@ -2089,9 +2158,9 @@ export default function SpacegroupQuizApp() {
                                     : statement.id === "centring-extinction"
                                       ? centringExtinctionLabel(statement.answer)
                                       : statement.id === "glide-extinction"
-                                        ? glideExtinctionLabel(statement.answer as string)
+                                        ? glideExtinctionLabel(statement.answer)
                                         : statement.id === "screw-extinction"
-                                          ? screwExtinctionLabel(statement.answer as string)
+                                          ? screwExtinctionLabel(statement.answer)
                                           : statement.answer;
                     const isCorrect = submitted && isStatementCorrect(statement);
                     const isWrong = submitted && selected !== null && !isStatementCorrect(statement);
