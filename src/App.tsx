@@ -767,15 +767,18 @@ function classifyOperation(op: string): {
   return { kind: "unknown", detail: "分類できません" };
 }
 
+
 function gcd2(a: number, b: number): number {
   let x = Math.abs(a);
   let y = Math.abs(b);
+  if (x === 0) return y;
+  if (y === 0) return x;
   while (y !== 0) {
     const t = x % y;
     x = y;
     y = t;
   }
-  return x || 1;
+  return x;
 }
 
 function gcd3(a: number, b: number, c: number): number {
@@ -1264,9 +1267,9 @@ function fractionalToCartesian(
 }
 
 function Symmetry3DPage({ entry }: { entry: SpacegroupEntry }) {
-  const [seedX, setSeedX] = useState(0.17);
-  const [seedY, setSeedY] = useState(0.29);
-  const [seedZ, setSeedZ] = useState(0.41);
+  const [seedX, setSeedX] = useState(0.1);
+  const [seedY, setSeedY] = useState(0.1);
+  const [seedZ, setSeedZ] = useState(0.1);
   const [rotX, setRotX] = useState(-90);
   const [rotY, setRotY] = useState(0);
   const [zoom, setZoom] = useState(3);
