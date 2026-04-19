@@ -699,7 +699,7 @@ function classifyOperation(op: string): {
   if (plane?.kind === "mirror") {
     return {
       kind: "mirror",
-      detail: `${plane.normalAxis} 軸に垂直な mirror plane`,
+      detail: `${plane.normalAxis} 軸に垂直な 鏡映面`,
     };
   }
   if (plane?.kind === "glide") {
@@ -2368,7 +2368,7 @@ function AxisConventionGuide() {
         <p>z → c 軸方向</p>
       </div>
       <div className="mt-3 space-y-1 text-slate-600">
-        <p>例: x, y, -z は z が反転しているので、c 軸に垂直な mirror plane（xy 面）を表します。</p>
+        <p>例: x, y, -z は z が反転しているので、c 軸に垂直な 鏡映面（xy 面）を表します。</p>
         <p>例: x, y, -z+1/2 は c-glide を表します。</p>
         <p>例: x+1/2, y+1/2, -z は n-glide を表します。</p>
         <p>例: -x, -y, z+1/2 は z 軸方向のらせん軸を表します。</p>
