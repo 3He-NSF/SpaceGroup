@@ -108,7 +108,6 @@ const MIRROR_PLANE_CHOICES = [
   { value: "x", label: "x軸に垂直（yz 面）" },
   { value: "y", label: "y軸に垂直（xz 面）" },
   { value: "z", label: "z軸に垂直（xy 面）" },
-  { value: "multiple", label: "複数の軸方向" },
   { value: "none", label: "鏡映面なし" },
 ] as const;
 
@@ -118,7 +117,6 @@ const GLIDE_PLANE_CHOICES = [
   { value: "c", label: "c-glide" },
   { value: "n", label: "n-glide" },
   { value: "d", label: "d-glide" },
-  { value: "multiple", label: "複数種類の glide" },
   { value: "none", label: "映進面なし" },
 ] as const;
 
@@ -126,7 +124,6 @@ const SCREW_AXIS_CHOICES = [
   { value: "x", label: "x 軸方向" },
   { value: "y", label: "y 軸方向" },
   { value: "z", label: "z 軸方向" },
-  { value: "multiple", label: "複数の軸方向" },
   { value: "none", label: "らせん軸なし" },
 ] as const;
 
@@ -143,7 +140,6 @@ const SCREW_TYPE_CHOICES = [
   { value: "63", label: "6₃" },
   { value: "64", label: "6₄" },
   { value: "65", label: "6₅" },
-  { value: "multiple", label: "複数種類のらせん軸" },
   { value: "none", label: "らせん軸なし" },
 ] as const;
 
@@ -340,7 +336,8 @@ function analyzePlaneLikeOperation(op: string): PlaneOperationAnalysis | null {
   return null;
 }
 
-function detectMirrorPlaneType(entry: SpacegroupEntry): "x" | "y" | "z" | "multiple" | "none" {
+
+function detectMirrorPlaneAxes(entry: SpacegroupEntry): string[] {
   const axes = new Set<Axis>();
   for (const op of entry.operations_xyz) {
     const analysis = analyzePlaneLikeOperation(op);
@@ -348,12 +345,11 @@ function detectMirrorPlaneType(entry: SpacegroupEntry): "x" | "y" | "z" | "multi
       axes.add(analysis.normalAxis);
     }
   }
-  if (axes.size === 0) return "none";
-  if (axes.size >= 2) return "multiple";
-  return Array.from(axes)[0];
+  return axes.size === 0 ? ["none"] : Array.from(axes).sort();
 }
 
-function detectGlidePlaneType(entry: SpacegroupEntry): "a" | "b" | "c" | "n" | "d" | "multiple" | "none" {
+
+function detectGlidePlaneTypes(entry: SpacegroupEntry): string[] {
   const glideTypes = new Set<"a" | "b" | "c" | "n" | "d">();
   for (const op of entry.operations_xyz) {
     const analysis = analyzePlaneLikeOperation(op);
@@ -361,9 +357,7 @@ function detectGlidePlaneType(entry: SpacegroupEntry): "a" | "b" | "c" | "n" | "
       glideTypes.add(analysis.glideType);
     }
   }
-  if (glideTypes.size === 0) return "none";
-  if (glideTypes.size >= 2) return "multiple";
-  return Array.from(glideTypes)[0];
+  return glideTypes.size === 0 ? ["none"] : Array.from(glideTypes).sort();
 }
 
 function analyzeScrewLikeOperation(op: string): ScrewOperationAnalysis | null {
@@ -470,7 +464,8 @@ function analyzeScrewLikeOperation(op: string): ScrewOperationAnalysis | null {
 
   return null;
 }
-function detectScrewType(entry: SpacegroupEntry): "21" | "31" | "32" | "41" | "42" | "43" | "61" | "62" | "63" | "64" | "65" | "multiple" | "none" {
+
+function detectScrewTypes(entry: SpacegroupEntry): string[] {
   const types = new Set<ScrewOperationAnalysis["screwType"]>();
   for (const op of entry.operations_xyz) {
     const analysis = analyzeScrewLikeOperation(op);
@@ -478,12 +473,11 @@ function detectScrewType(entry: SpacegroupEntry): "21" | "31" | "32" | "41" | "4
       types.add(analysis.screwType);
     }
   }
-  if (types.size === 0) return "none";
-  if (types.size >= 2) return "multiple";
-  return Array.from(types)[0];
+  return types.size === 0 ? ["none"] : Array.from(types).sort();
 }
 
-function detectScrewAxisType(entry: SpacegroupEntry): "x" | "y" | "z" | "multiple" | "none" {
+
+function detectScrewAxisTypes(entry: SpacegroupEntry): string[] {
   const axes = new Set<Axis>();
   for (const op of entry.operations_xyz) {
     const analysis = analyzeScrewLikeOperation(op);
@@ -491,9 +485,7 @@ function detectScrewAxisType(entry: SpacegroupEntry): "x" | "y" | "z" | "multipl
       axes.add(analysis.axis);
     }
   }
-  if (axes.size === 0) return "none";
-  if (axes.size >= 2) return "multiple";
-  return Array.from(axes)[0];
+  return axes.size === 0 ? ["none"] : Array.from(axes).sort();
 }
 
 
@@ -983,27 +975,31 @@ function makeQuiz(entry: SpacegroupEntry): Statement[] {
     },
     {
       id: "mirror",
-      text: "この空間群の鏡映面はどの軸に垂直かを選んでください。",
-      answer: detectMirrorPlaneType(entry),
+      text: "この空間群の鏡映面はどの軸に垂直かをすべて選んでください。",
+      answer: detectMirrorPlaneAxes(entry),
       choices: MIRROR_PLANE_CHOICES.map((choice) => ({ ...choice })),
+      multiSelect: true,
     },
     {
       id: "glide",
-      text: "この空間群に含まれる glide plane の種類を選んでください。",
-      answer: detectGlidePlaneType(entry),
+      text: "この空間群に含まれる glide plane の種類をすべて選んでください。",
+      answer: detectGlidePlaneTypes(entry),
       choices: GLIDE_PLANE_CHOICES.map((choice) => ({ ...choice })),
+      multiSelect: true,
     },
     {
       id: "screw",
-      text: "この空間群のらせん軸はどの方向かを選んでください。",
-      answer: detectScrewAxisType(entry),
+      text: "この空間群のらせん軸はどの方向かをすべて選んでください。",
+      answer: detectScrewAxisTypes(entry),
       choices: SCREW_AXIS_CHOICES.map((choice) => ({ ...choice })),
+      multiSelect: true,
     },
     {
       id: "screw-type",
-      text: "この空間群に含まれるらせん軸の種類を選んでください。",
-      answer: detectScrewType(entry),
+      text: "この空間群に含まれるらせん軸の種類をすべて選んでください。",
+      answer: detectScrewTypes(entry),
       choices: SCREW_TYPE_CHOICES.map((choice) => ({ ...choice })),
+      multiSelect: true,
     },
     {
       id: "centring-extinction",
@@ -1841,7 +1837,7 @@ export default function SpacegroupQuizApp() {
     const next: Record<string, AnswerValue | null> = {};
     for (const st of statements) {
       if (st.multiSelect) {
-        next[st.id] = [];
+        next[st.id] = st.choices?.some((choice) => choice.value === "none") ? ["none"] : [];
       } else if (st.choices?.some((choice) => choice.value === "none")) {
         next[st.id] = "none";
       } else {
@@ -1880,10 +1876,26 @@ export default function SpacegroupQuizApp() {
     if (statement.multiSelect && typeof value === "string") {
       setAnswers((prev) => {
         const current = Array.isArray(prev[statementId]) ? [...(prev[statementId] as string[])] : [];
-        const exists = current.includes(value);
+        const hasNoneChoice = statement.choices?.some((choice) => choice.value === "none");
+
+        if (value === "none") {
+          return {
+            ...prev,
+            [statementId]: ["none"],
+          };
+        }
+
+        let nextValues = current.filter((v) => v !== "none");
+        const exists = nextValues.includes(value);
+        nextValues = exists ? nextValues.filter((v) => v !== value) : [...nextValues, value];
+
+        if (nextValues.length === 0 && hasNoneChoice) {
+          nextValues = ["none"];
+        }
+
         return {
           ...prev,
-          [statementId]: exists ? current.filter((v) => v !== value) : [...current, value],
+          [statementId]: nextValues,
         };
       });
       return;
