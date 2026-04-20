@@ -627,6 +627,7 @@ screw種類: {formatSelectedFilterLabels(
                 value={inversionFilter}
                 onChange={(e) => setInversionFilter(e.target.value as "all" | "with" | "without")}
             >
+                <option value="all">すべて</option>
                 <option value="with">あり</option>
                 <option value="without">なし</option>
             </select>
