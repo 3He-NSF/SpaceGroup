@@ -389,6 +389,8 @@ export function classifyOperation(op: string): {
     parsed.matrix[0][0] * (parsed.matrix[1][1] * parsed.matrix[2][2] - parsed.matrix[1][2] * parsed.matrix[2][1]) -
     parsed.matrix[0][1] * (parsed.matrix[1][0] * parsed.matrix[2][2] - parsed.matrix[1][2] * parsed.matrix[2][0]) +
     parsed.matrix[0][2] * (parsed.matrix[1][0] * parsed.matrix[2][1] - parsed.matrix[1][1] * parsed.matrix[2][0]);
+  const trace = parsed.matrix[0][0] + parsed.matrix[1][1] + parsed.matrix[2][2];
+  const approx = (a: number, b: number) => Math.abs(a - b) < 1e-8;
 
   const identity: [number, number, number][] = [
     [1, 0, 0],
@@ -443,7 +445,18 @@ export function classifyOperation(op: string): {
     };
   }
 
-  if (determinant === -1) {
+  if (approx(determinant, -1) && approx(trace, 1)) {
+    const axisDirection = getRotoinversionAxisDirection(op);
+    return {
+      kind: "mirror",
+      detail: axisDirection
+        ? `鏡映操作 / mirror（${axisDirection} に垂直）`
+        : "鏡映操作 / mirror",
+      axisDirection: axisDirection ?? undefined,
+    };
+  }
+
+  if (approx(determinant, -1)) {
     const axisDirection = getRotoinversionAxisDirection(op);
     return {
       kind: "rotoinversion",

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SpacegroupEntry } from "@/logic/quiz";
 import { GLIDE_PLANE_CHOICES, MIRROR_PLANE_CHOICES, SCREW_TYPE_CHOICES } from "@/data/choices";
-import { analyzePlaneLikeOperation, analyzeScrewLikeOperation } from "@/logic/symmetry";
+import { analyzePlaneLikeOperation, analyzeScrewLikeOperation, classifyOperation } from "@/logic/symmetry";
 
 type SpacegroupListPageProps = {
   entries: SpacegroupEntry[];
@@ -42,6 +42,11 @@ function getEntryMirrorTypes(entry: SpacegroupEntry) {
   }
   return Array.from(types).sort();
 }
+
+function entryHasAnyMirror(entry: SpacegroupEntry) {
+  return entry.operations_xyz.some((op) => classifyOperation(op).kind === "mirror");
+}
+
 function formatSelectedFilterLabels(
   selectedValues: string[],
   options: { value: string; label: string }[],
@@ -261,17 +266,18 @@ const mirrorTypeOptions = useMemo(() => {
         if (!matchesCentringFilter) return false;
       }
 
-        if (mirrorTypeFilter.length > 0) {
+      if (mirrorTypeFilter.length > 0) {
         const entryMirrorTypes = getEntryMirrorTypes(e);
+        const hasAnyMirror = entryHasAnyMirror(e);
         const matchesMirrorFilter = mirrorTypeFilter.some((value) =>
-            value === "all"
+          value === "all"
             ? true
             : value === "none"
-                ? entryMirrorTypes.length === 0
-                : entryMirrorTypes.includes(value)
+              ? !hasAnyMirror
+              : entryMirrorTypes.includes(value)
         );
         if (!matchesMirrorFilter) return false;
-        }
+      }
 
     if (glideTypeFilter.length > 0) {
     const entryGlideTypes = getEntryGlideTypes(e);

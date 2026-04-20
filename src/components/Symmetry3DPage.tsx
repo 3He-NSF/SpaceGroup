@@ -256,8 +256,8 @@ function getPlaneVisualization(op: string): {
 
 export default function Symmetry3DPage({ entry }: { entry: SpacegroupEntry }) {
   const [seedX, setSeedX] = useState(0.1);
-  const [seedY, setSeedY] = useState(0.1);
-  const [seedZ, setSeedZ] = useState(0.1);
+  const [seedY, setSeedY] = useState(0.15);
+  const [seedZ, setSeedZ] = useState(0.2);
   const [rotX, setRotX] = useState(-90);
   const [rotY, setRotY] = useState(0);
   const [zoom, setZoom] = useState(3);
