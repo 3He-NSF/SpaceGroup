@@ -62,7 +62,8 @@ export const CENTRING_EXTINCTION_CHOICES = [
   { value: "k+l=2n", label: "k + l = 2n" },
   { value: "h+k+l=2n", label: "h + k + l = 2n" },
   { value: "-h+k+l=3n", label: "-h + k + l = 3n" },
-  { value: "none", label: "消滅則なし" },
+  { value: "all-odd-or-even", label: "h, k, l がすべて偶数またはすべて奇数" },
+  { value: "none", label: "条件なし（すべてのhkl）" },
 ] as const;
 
 export const GLIDE_EXTINCTION_CHOICES = [
@@ -72,7 +73,13 @@ export const GLIDE_EXTINCTION_CHOICES = [
   { value: "h0l:l=2n", label: "h0l: l = 2n" },
   { value: "0kl:k=2n", label: "0kl: k = 2n" },
   { value: "0kl:l=2n", label: "0kl: l = 2n" },
-  { value: "none", label: "該当なし" },
+  { value: "hk0:h+k=2n", label: "hk0:h + k = 2n" }, // n-glide
+  { value: "hl0:h+l=2n", label: "hl0:h + l = 2n" },
+  { value: "kl0:k+l=2n", label: "kl0:k + l = 2n" },
+  { value: "hk0:h+k=4n", label: "hk0:h + k = 4n" }, // d-glide
+  { value: "h0l:h+l=4n", label: "h0l: h + l = 4n" }, // d-glide
+  { value: "0kl:k+l=4n", label: "0kl: k + l = 4n" }, // d-glide
+  { value: "none", label: "条件なし" },
 ] as const;
 
 export const SCREW_EXTINCTION_CHOICES = [
@@ -82,7 +89,8 @@ export const SCREW_EXTINCTION_CHOICES = [
   { value: "0k0:k=4n", label: "0k0: k = 4n" },
   { value: "00l:l=2n", label: "00l: l = 2n" },
   { value: "00l:l=4n", label: "00l: l = 4n" },
-  { value: "00l:l=3n", label: "00l: l = 3n" },
-  { value: "000l:l=6n", label: "000l: l = 6n" },
-  { value: "none", label: "該当なし" },
+  { value: "h00:h=3n", label: "h00: h = 3n" },
+  { value: "0k0:k=3n", label: "0k0: k = 3n" },
+  { value: "00l:l=6n", label: "00l: l = 6n" },
+  { value: "none", label: "条件なし" },
 ] as const;

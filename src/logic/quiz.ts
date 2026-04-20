@@ -283,21 +283,25 @@ export function makeQuiz(entry: SpacegroupEntry): Statement[] {
     },
     {
       id: "centring-extinction",
-      text: "格子タイプに由来する消滅則をすべて選んでください。",
-      answer: detectCentringExtinction(entry),
+      text: "格子タイプに由来する反射条件を選んでください。",
+      answer:
+        entry.centring_type === "F"
+          ? "all-odd-or-even"
+          : Array.isArray(detectCentringExtinction(entry))
+            ? detectCentringExtinction(entry)[0] ?? "none"
+            : detectCentringExtinction(entry),
       choices: CENTRING_EXTINCTION_CHOICES.map((c) => ({ ...c })),
-      multiSelect: true,
     },
     {
       id: "glide-extinction",
-      text: "映進面に由来する消滅則をすべて選んでください。",
+      text: "映進面に由来する反射条件をすべて選んでください。",
       answer: detectGlideExtinctions(entry),
       choices: GLIDE_EXTINCTION_CHOICES.map((c) => ({ ...c })),
       multiSelect: true,
     },
     {
       id: "screw-extinction",
-      text: "らせん軸に由来する消滅則をすべて選んでください。",
+      text: "らせん軸に由来する反射条件をすべて選んでください。",
       answer: detectScrewExtinctions(entry),
       choices: SCREW_EXTINCTION_CHOICES.map((c) => ({ ...c })),
       multiSelect: true,

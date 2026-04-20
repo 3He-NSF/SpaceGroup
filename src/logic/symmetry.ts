@@ -272,11 +272,11 @@ export function analyzeScrewLikeOperation(op: string): ScrewOperationAnalysis | 
     if (screwType) return { axis: "z", screwType };
   }
 
-  const aroundZ6_60 = matrixEquals(parsed.matrix, [[0, -1, 0], [1, 1, 0], [0, 0, 1]]);
-  const aroundZ6_120 = matrixEquals(parsed.matrix, [[-1, -1, 0], [1, 0, 0], [0, 0, 1]]);
+  const aroundZ6_60 = matrixEquals(parsed.matrix, [[1, -1, 0], [1, 0, 0], [0, 0, 1]]);
+  const aroundZ6_120 = matrixEquals(parsed.matrix, [[0, -1, 0], [1, -1, 0], [0, 0, 1]]);
   const aroundZ6_180 = matrixEquals(parsed.matrix, [[-1, 0, 0], [0, -1, 0], [0, 0, 1]]);
-  const aroundZ6_240 = matrixEquals(parsed.matrix, [[0, 1, 0], [-1, -1, 0], [0, 0, 1]]);
-  const aroundZ6_300 = matrixEquals(parsed.matrix, [[1, 1, 0], [-1, 0, 0], [0, 0, 1]]);
+  const aroundZ6_240 = matrixEquals(parsed.matrix, [[-1, 1, 0], [-1, 0, 0], [0, 0, 1]]);
+  const aroundZ6_300 = matrixEquals(parsed.matrix, [[0, 1, 0], [-1, 1, 0], [0, 0, 1]]);
 
   if (aroundZ6_60 || aroundZ6_120 || aroundZ6_180 || aroundZ6_240 || aroundZ6_300) {
     const screwType = detectTypeFromTranslation(translation[2], ["61", "62", "63", "64", "65"] as const);
@@ -541,29 +541,47 @@ export function detectGlideExtinctions(entry: { operations_xyz: string[] }): str
     if (!plane || plane.kind !== "glide" || !plane.glideType) continue;
 
     if (plane.normalAxis === "z") {
-      if (plane.glideType === "a" || plane.glideType === "n" || plane.glideType === "d") {
+      if (plane.glideType === "a") {
         results.add("hk0:h=2n");
       }
       if (plane.glideType === "b") {
         results.add("hk0:k=2n");
       }
+      if (plane.glideType === "n") {
+        results.add("hk0:h+k=2n");
+      }
+      if (plane.glideType === "d") {
+        results.add("hk0:h+k=4n");
+      }
     }
 
     if (plane.normalAxis === "y") {
-      if (plane.glideType === "a" || plane.glideType === "n" || plane.glideType === "d") {
+      if (plane.glideType === "a") {
         results.add("h0l:h=2n");
       }
       if (plane.glideType === "c") {
         results.add("h0l:l=2n");
       }
+      if (plane.glideType === "n") {
+        results.add("h0l:h+l=2n");
+      }
+      if (plane.glideType === "d") {
+        results.add("h0l:h+l=4n");
+      }
     }
 
     if (plane.normalAxis === "x") {
-      if (plane.glideType === "b" || plane.glideType === "n" || plane.glideType === "d") {
+      if (plane.glideType === "b") {
         results.add("0kl:k=2n");
       }
       if (plane.glideType === "c") {
         results.add("0kl:l=2n");
+      }
+      if (plane.glideType === "n") {
+        results.add("0kl:k+l=2n");
+      }
+      if (plane.glideType === "d") {
+        results.add("0kl:k+l=4n");
       }
     }
   }
@@ -579,20 +597,48 @@ export function detectScrewExtinctions(entry: { operations_xyz: string[] }): str
     if (!screw) continue;
 
     if (screw.axis === "x") {
-      if (screw.screwType === "21" || screw.screwType === "42") results.add("h00:h=2n");
-      if (screw.screwType === "41" || screw.screwType === "43") results.add("h00:h=4n");
+      if (screw.screwType === "21" || screw.screwType === "42" || screw.screwType === "63") {
+        results.add("h00:h=2n");
+      }
+      if (screw.screwType === "31" || screw.screwType === "32" || screw.screwType === "62" || screw.screwType === "64") {
+        results.add("h00:h=3n");
+      }
+      if (screw.screwType === "41" || screw.screwType === "43") {
+        results.add("h00:h=4n");
+      }
+      if (screw.screwType === "61" || screw.screwType === "65") {
+        results.add("h00:h=6n");
+      }
     }
 
     if (screw.axis === "y") {
-      if (screw.screwType === "21" || screw.screwType === "42") results.add("0k0:k=2n");
-      if (screw.screwType === "41" || screw.screwType === "43") results.add("0k0:k=4n");
+      if (screw.screwType === "21" || screw.screwType === "42" || screw.screwType === "63") {
+        results.add("0k0:k=2n");
+      }
+      if (screw.screwType === "31" || screw.screwType === "32" || screw.screwType === "62" || screw.screwType === "64") {
+        results.add("0k0:k=3n");
+      }
+      if (screw.screwType === "41" || screw.screwType === "43") {
+        results.add("0k0:k=4n");
+      }
+      if (screw.screwType === "61" || screw.screwType === "65") {
+        results.add("0k0:k=6n");
+      }
     }
 
     if (screw.axis === "z") {
-      if (screw.screwType === "61" || screw.screwType === "65") results.add("000l:l=6n");
-      if (screw.screwType === "31" || screw.screwType === "32" || screw.screwType === "62" || screw.screwType === "64") results.add("00l:l=3n");
-      if (screw.screwType === "41" || screw.screwType === "43") results.add("00l:l=4n");
-      if (screw.screwType === "21" || screw.screwType === "42" || screw.screwType === "63") results.add("00l:l=2n");
+      if (screw.screwType === "21" || screw.screwType === "42" || screw.screwType === "63") {
+        results.add("00l:l=2n");
+      }
+      if (screw.screwType === "31" || screw.screwType === "32" || screw.screwType === "62" || screw.screwType === "64") {
+        results.add("00l:l=3n");
+      }
+      if (screw.screwType === "41" || screw.screwType === "43") {
+        results.add("00l:l=4n");
+      }
+      if (screw.screwType === "61" || screw.screwType === "65") {
+        results.add("00l:l=6n");
+      }
     }
   }
 

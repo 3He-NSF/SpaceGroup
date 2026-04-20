@@ -1,7 +1,6 @@
 import { CheckCircle2, RefreshCw, Send, Trophy, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import type { AnswerValue, QuizHistoryItem, SpacegroupEntry, Statement } from "@/logic/quiz";
 import {
   tfLabel,
@@ -14,6 +13,7 @@ import {
   glideExtinctionLabel,
   screwExtinctionLabel,
 } from "@/logic/quiz";
+
 
 type QuizPageProps = {
   entry: SpacegroupEntry;
@@ -63,7 +63,6 @@ export default function QuizPage({
   submitted,
   score,
   allAnswered,
-  extinctionConditions,
   quizHistory,
   quizContextLabel,
   onSelectAnswer,
@@ -306,15 +305,6 @@ export default function QuizPage({
               <InfoRow label="結晶系" value={entry.crystal_system} />
               <InfoRow label="格子形式" value={entry.centring_type} />
               <InfoRow label="点群" value={entry.point_group_hm} />
-              <Separator className="" />
-              <div className="rounded-xl border p-3">
-                <div className="font-medium text-slate-900">主な消滅条件</div>
-                <div className="mt-2 space-y-1 text-sm text-slate-700">
-                  {extinctionConditions.map((condition, index) => (
-                    <div key={`${condition}-${index}`}>• {condition}</div>
-                  ))}
-                </div>
-              </div>
 <details className="rounded-xl border p-3">
   <summary className="cursor-pointer font-medium text-slate-700">対称操作を表示</summary>
       <div className="mt-2 space-y-1 font-mono text-sm text-slate-700">
