@@ -317,18 +317,11 @@ export default function QuizPage({
               </div>
 <details className="rounded-xl border p-3">
   <summary className="cursor-pointer font-medium text-slate-700">対称操作を表示</summary>
-  <div className="mt-3 space-y-2 text-sm text-slate-600">
-    {entry.qualifier && <InfoRow label="修飾子" value={entry.qualifier} />}
-    {entry.spglib_choice && <InfoRow label="設定の選択" value={entry.spglib_choice} />}
-    <div className="rounded-xl border bg-slate-50 p-3">
-      <div className="font-medium text-slate-900">対称操作</div>
       <div className="mt-2 space-y-1 font-mono text-sm text-slate-700">
         {entry.operations_xyz.map((operation, index) => (
           <div key={`${operation}-${index}`}>{operation}</div>
         ))}
-      </div>
     </div>
-  </div>
 </details>
             </CardContent>
           </Card>
